@@ -70,14 +70,14 @@ function main(args) {
 		printUsage();
 		return;
 	}
-
+	
 	// set defaults
 	var zoneFileDirectory = '../tz_olson';
 	var datePath = 'date.js';
 	var jsonPath = '../json.js';
 	
 	var cities = [];
-
+	
 	// parse arguments
 	var arg;
 	for (var i = 0; i < args.length; i++) {
@@ -86,7 +86,7 @@ function main(args) {
 		if (arg.slice(0, 2) == "--") {
 			// parse option
 			nameValue = arg.slice(2).split('=');
-
+			
 			switch(nameValue[0]) {
 				case "zoneFileDirectory":
 					zoneFileDirectory = nameValue[1];

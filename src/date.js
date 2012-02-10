@@ -45,18 +45,11 @@ timezoneJS.Date = function () {
   // year, month, [date,] [hours,] [minutes,] [seconds,] [milliseconds,] [tzId,] [utc]
   else {
     t = args[args.length-1];
-    // Last arg is utc
     if (typeof t == 'boolean') {
+      // Last arg is utc
       utc = args.pop();
-      tz = args.pop();
     }
-    // Last arg is tzId
-    else if (typeof t == 'string') {
-      tz = args.pop();
-      if (tz == 'Etc/UTC' || tz == 'Etc/GMT') {
-        utc = true;
-      }
-    }
+    tz = args.pop();
 
     // Date string (e.g., '12/27/2006')
     t = args[args.length-1];
@@ -72,7 +65,6 @@ timezoneJS.Date = function () {
       dt = new Date(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
     }
   }
-  this._useCache = false;
   this._tzInfo = {};
   this._tzAbbr = '';
   this._day = 0;
@@ -83,8 +75,9 @@ timezoneJS.Date = function () {
   this.minutes = 0;
   this.seconds = 0;
   this.milliseconds = 0;
-  this.timezone = tz || null;
-  this.utc = utc || false;
+  
+  this.setTimezone(tz, utc);
+  
   this.setFromDateObjProxy(dt);
 };
 
@@ -288,9 +281,16 @@ timezoneJS.Date.prototype = {
     dt.setUTCMinutes(dt.getUTCMinutes() - this.getTimezoneOffset());
     this.setFromDateObjProxy(dt, true);
   },
-  setTimezone: function (tz) {
-    if (tz == 'Etc/UTC' || tz == 'Etc/GMT') {
+  setTimezone: function (tz, utc) {
+    tz = tz || timezoneJS.timezone.defaultTimezone;
+    if (typeof utc == 'undefined') {
+      this.utc = false;
+    }
+    else if (tz == 'Etc/UTC' || tz == 'Etc/GMT') {
       this.utc = true;
+    }
+    else {
+      this.utc = utc;
     }
     this.timezone = tz;
     this._useCache = false;
@@ -688,6 +688,10 @@ timezoneJS.timezone = new function() {
   this.loadedZones = {};
   this.zones = {};
   this.rules = {};
+  
+  // Default timezone for new dates if no explicit timezone is specified
+  // null is system-local timezone
+  this.defaultTimezone = null;
 
   this.init = function (o) {
     var opts = { async: true };
@@ -698,7 +702,11 @@ timezoneJS.timezone = new function() {
     for (var p in o) {
       opts[p] = o[p];
     }
-    if (typeof def == 'string') {
+    if (this.loadingScheme == this.loadingSchemes.MANUAL_LOAD && opts.zoneData) {
+      // assign parsed zone data from object
+      this.loadZoneDataFromObject(opts.zoneData);
+    }
+    else if (typeof def == 'string') {
       parsed = this.loadZoneFile(def, opts);
     }
     else {
