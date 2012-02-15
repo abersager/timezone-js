@@ -29,42 +29,49 @@ if (typeof timezoneJS == 'undefined') { timezoneJS = {}; }
 
 timezoneJS.Date = function () {
   var args = Array.prototype.slice.apply(arguments);
+
   var t = null;
   var dt = null;
   var tz = null;
   var utc = false;
-
+  var setFromTimestamp = false;
+  
+  
+  if (args.length > 0 && typeof args[args.length-1] == 'boolean') {
+      // interpret a Boolean as last argument as UTC parameter
+      utc = args.pop();
+  }
+  
   // No args -- create a floating date based on the current local offset
   if (args.length === 0) {
     dt = new Date();
   }
-  // Date string or timestamp -- assumes floating
   else if (args.length == 1) {
+    // Date string or timestamp -- assumes floating
+    if (typeof args[0] == 'number') {
+      setFromTimestamp = true;
+    }
     dt = new Date(args[0]);
   }
-  // year, month, [date,] [hours,] [minutes,] [seconds,] [milliseconds,] [tzId,] [utc]
   else {
-    t = args[args.length-1];
-    if (typeof t == 'boolean') {
-      // Last arg is utc
-      utc = args.pop();
-    }
-    tz = args.pop();
+    // year, month, [date,] [hours,] [minutes,] [seconds,] [milliseconds,] [tzId,]
 
-    // Date string (e.g., '12/27/2006')
-    t = args[args.length-1];
-    if (typeof t == 'string') {
-      dt = new Date(args[0]);
+    if (typeof args[args.length-1] == 'string') {
+      // interpret as explicit timezone identifier
+      tz = args.pop();
     }
-    // Date part numbers
-    else {
-      var a = [];
-      for (var i = 0; i < 8; i++) {
-        a[i] = args[i] || 0;
-      }
-      dt = new Date(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
+    
+    // prepare call to native Date constructor
+    // JavaScript Date constructor does not support being called with .apply()
+    // workaround by explicitly listing individual parameters
+    var a = [];
+    for (var i = 0; i < 8; i++) {
+      // default values: date (day in month) is 1-indexed, all others are 0-indexed
+      a[i] = (typeof args[i] != 'undefined') ? args[i] : (i == 2) ? 1 : 0;
     }
+    dt = new Date(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
   }
+  
   this._tzInfo = {};
   this._tzAbbr = '';
   this._day = 0;
@@ -79,6 +86,11 @@ timezoneJS.Date = function () {
   this.setTimezone(tz, utc);
   
   this.setFromDateObjProxy(dt);
+  
+  if (setFromTimestamp && timezoneJS.timezone.defaultTimezone) {
+    // counter effect of default timezone
+    this.setMinutes(this.getMinutes() - this.getTimezoneOffset());
+  }
 };
 
 timezoneJS.Date.prototype = {
@@ -282,7 +294,6 @@ timezoneJS.Date.prototype = {
     this.setFromDateObjProxy(dt, true);
   },
   setTimezone: function (tz, utc) {
-    tz = tz || timezoneJS.timezone.defaultTimezone;
     if (typeof utc == 'undefined') {
       this.utc = false;
     }
@@ -292,7 +303,7 @@ timezoneJS.Date.prototype = {
     else {
       this.utc = utc;
     }
-    this.timezone = tz;
+    this.timezone = tz || timezoneJS.timezone.defaultTimezone;
     this._useCache = false;
   },
   removeTimezone: function () {
